@@ -23,7 +23,7 @@ from mediapipe.tasks.python import BaseOptions, vision
 ROOT = Path(__file__).resolve().parent.parent
 TARGET_FPS = 30
 UPSCALE_BELOW = 720
-MIN_CONFIDENCE = 0.3
+DEFAULT_CONFIDENCE = 0.3
 
 # Mismo orden que FACE_KEEP en build-clips.mjs y las posiciones de src/lib/hands.js.
 FACE_KEEP = [
@@ -39,21 +39,21 @@ FACE_KEEP = [
 POSE_KEEP = [11, 12, 13, 14, 15, 16]  # hombros, codos y muñecas
 
 
-def landmarkers(models: Path):
+def landmarkers(models: Path, confidence: float):
     def base(name):
         return BaseOptions(model_asset_path=str(models / name))
 
     video = vision.RunningMode.VIDEO
     hands = vision.HandLandmarker.create_from_options(vision.HandLandmarkerOptions(
         base_options=base("hand_landmarker.task"), running_mode=video, num_hands=2,
-        min_hand_detection_confidence=MIN_CONFIDENCE, min_hand_presence_confidence=MIN_CONFIDENCE,
-        min_tracking_confidence=MIN_CONFIDENCE))
+        min_hand_detection_confidence=confidence, min_hand_presence_confidence=confidence,
+        min_tracking_confidence=confidence))
     face = vision.FaceLandmarker.create_from_options(vision.FaceLandmarkerOptions(
         base_options=base("face_landmarker.task"), running_mode=video, num_faces=1,
-        min_face_detection_confidence=MIN_CONFIDENCE, min_tracking_confidence=MIN_CONFIDENCE))
+        min_face_detection_confidence=confidence, min_tracking_confidence=confidence))
     pose = vision.PoseLandmarker.create_from_options(vision.PoseLandmarkerOptions(
         base_options=base("pose_landmarker_lite.task"), running_mode=video, num_poses=1,
-        min_pose_detection_confidence=MIN_CONFIDENCE, min_tracking_confidence=MIN_CONFIDENCE))
+        min_pose_detection_confidence=confidence, min_tracking_confidence=confidence))
     return hands, face, pose
 
 
@@ -68,7 +68,7 @@ def flat(points, indices=None, z=True):
 
 
 def extract(args):
-    video, models, out_dir = args
+    video, models, out_dir, confidence = args
     capture = cv2.VideoCapture(str(video))
     fps = capture.get(cv2.CAP_PROP_FPS) or 30.0
     width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -76,7 +76,7 @@ def extract(args):
     step = max(1, round(fps / TARGET_FPS))
     scale = max(1, UPSCALE_BELOW // height)
 
-    hands, face, pose = landmarkers(models)
+    hands, face, pose = landmarkers(models, confidence)
     series = {"r": [], "l": [], "f": [], "p": []}
     index = 0
     while True:
@@ -121,6 +121,7 @@ def main():
     parser.add_argument("--savb", default=str(ROOT.parent / "SAVb"))
     parser.add_argument("--only", nargs="*")
     parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--confidence", type=float, default=DEFAULT_CONFIDENCE)
     options = parser.parse_args()
 
     savb = Path(options.savb)
@@ -130,7 +131,7 @@ def main():
     if options.only:
         videos = [v for v in videos if v.stem in options.only]
 
-    jobs = [(video, savb / "mediapipe_models", out_dir) for video in videos]
+    jobs = [(video, savb / "mediapipe_models", out_dir, options.confidence) for video in videos]
     with Pool(options.workers) as pool:
         for done, (label, frames, missing) in enumerate(pool.imap_unordered(extract, jobs), 1):
             print(f"{done}/{len(jobs)} {label}: {frames} cuadros, faltan {missing}", flush=True)

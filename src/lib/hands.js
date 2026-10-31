@@ -11,7 +11,7 @@ const FINGERS = [
 const PALM = [0, 1, 5, 9, 13, 17]
 const BONE_WIDTHS = [0.34, 0.31, 0.27]
 
-// Posiciones dentro de clip.f, en el orden de FACE_KEEP.
+// Posiciones dentro de clip.f y clip.p, en el orden de scripts/extract_landmarks.py.
 const HEAD = { top: 0, chin: 1, cheek: 2 }
 const EYES = [
   { outer: 3, inner: 4, lower: 5, upper: 6 },
@@ -19,15 +19,21 @@ const EYES = [
 ]
 const NOSE_TIP = 12
 const MOUTH = { left: 13, right: 22, upper: 41, lower: 31 }
+const BROWS = [
+  { outer: 46, inner: 50 },
+  { outer: 55, inner: 51 },
+]
+const POSE = { shoulder: 0, elbow: 2, wrist: 4 }
 
 const WITH_BODY = { x: 2.7, top: -1.45, bottom: 4 }
 const THUMBNAIL = { x: 2, top: -0.85, bottom: 3.1 }
 const HAND_ONLY = { x: 1.6, top: -1.6, bottom: 1.6 }
-const TRAJECTORY_MIN = 0.45
+const TRAJECTORY_MIN = 0.3
+const SIGNING_ZONE = 0.55
 
-// Sin landmarks de pose, hombros y brazos se calculan para dar referencia de cuerpo.
-const SHOULDER = { x: 1.16, y: 1.1 }
-const ELBOW = { out: 0.16, drop: 0.95 }
+const BROW = { gap: 0.135, reach: 0.08, liftGain: 2.2, tiltGain: 1.2, maxLift: 0.09, maxTilt: 0.045 }
+const TORSO_HALF_WIDTH = 1.16
+const FIST_RADIUS = 0.2
 
 export const readTheme = (el) => {
   const css = getComputedStyle(el)
@@ -68,6 +74,7 @@ function sample(series, t) {
 }
 
 // El recorrido de cada mano, para leer el movimiento sin esperar la animación.
+// Solo la parte alta: subir desde el reposo y volver a bajar no es la seña.
 function trajectory(series) {
   const points = []
   for (let t = 0; t <= series.length - 1; t += 0.25) {
@@ -76,24 +83,18 @@ function trajectory(series) {
   }
   const known = points.filter(Boolean)
   if (!known.length) return []
-  const xs = known.map((p) => p.x)
-  const ys = known.map((p) => p.y)
+  const heights = known.map((p) => p.y)
+  const low = Math.max(...heights)
+  const cut = low - (low - Math.min(...heights)) * SIGNING_ZONE
+  const first = points.findIndex((p) => p && p.y < cut)
+  const last = points.findLastIndex((p) => p && p.y < cut)
+  const signing = points.slice(first, last + 1)
+  const inZone = signing.filter(Boolean)
+  if (!inZone.length) return []
+  const xs = inZone.map((p) => p.x)
+  const ys = inZone.map((p) => p.y)
   const span = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
-  return span > TRAJECTORY_MIN ? points : []
-}
-
-const medianX = (series) => {
-  const xs = series.filter(Boolean).map((hand) => hand[0]).sort((a, b) => a - b)
-  return xs.length ? xs[Math.floor(xs.length / 2)] : null
-}
-
-// Cada mano va al hombro de su lado de la imagen, no a la etiqueta derecha/izquierda.
-function shoulders(clip) {
-  const left = medianX(clip.l)
-  const right = medianX(clip.r)
-  if (left === null) return { r: right < 0 ? -1 : 1 }
-  if (right === null) return { l: left < 0 ? -1 : 1 }
-  return left < right ? { l: -1, r: 1 } : { l: 1, r: -1 }
+  return span > TRAJECTORY_MIN ? signing : []
 }
 
 // Grosor fijo por clip: medido cuadro a cuadro, una mano en escorzo se vuelve de alambre.
@@ -102,12 +103,44 @@ const handSize = (series) => {
   return sizes[Math.floor(sizes.length * 0.8)] ?? 0
 }
 
+const medianOf = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0
+
+// A qué mano corresponde cada brazo de la pose, por cercanía entre muñecas.
+function armHands(clip) {
+  const distance = (slot, arm) => {
+    const gaps = []
+    clip[slot].forEach((hand, t) => {
+      const pose = clip.p[t]
+      if (hand && pose) gaps.push(dist(point(hand, 0), point(pose, POSE.wrist + arm, 2)))
+    })
+    return gaps.length ? medianOf(gaps) : 3
+  }
+  return distance('r', 0) + distance('l', 1) <= distance('r', 1) + distance('l', 0) ? ['r', 'l'] : ['l', 'r']
+}
+
+function browPose(face, eye, brow) {
+  const outer = point(face, brow.outer, 2)
+  const inner = point(face, brow.inner, 2)
+  const eyeY = (point(face, eye.outer, 2)[1] + point(face, eye.inner, 2)[1]) / 2
+  return { lift: eyeY - (outer[1] + inner[1]) / 2, tilt: inner[1] - outer[1] }
+}
+
+// Cada persona tiene su propia cara en reposo; lo que significa es cuánto se aleja de ella.
+function browRest(clip) {
+  const faces = clip.f.filter(Boolean)
+  return EYES.map((eye, i) => {
+    const poses = faces.map((face) => browPose(face, eye, BROWS[i]))
+    return { lift: medianOf(poses.map((p) => p.lift)), tilt: medianOf(poses.map((p) => p.tilt)) }
+  })
+}
+
 export function prepare(clip) {
   return {
     ...clip,
     paths: [trajectory(clip.l), trajectory(clip.r)],
-    sides: shoulders(clip),
     sizes: { l: handSize(clip.l), r: handSize(clip.r) },
+    arms: clip.p ? armHands(clip) : [],
+    brows: clip.f ? browRest(clip) : [],
   }
 }
 
@@ -132,27 +165,42 @@ function tracePolygon(ctx, flat, indices, stride) {
   ctx.closePath()
 }
 
-function drawTorso(ctx, theme) {
-  ctx.fillStyle = theme.skinShade
-  ctx.beginPath()
-  ctx.roundRect(-0.25, 0.3, 0.5, 1, 0.14)
-  ctx.fill()
+function drawTorso(ctx, face, pose, theme) {
+  const a = point(pose, POSE.shoulder, 2)
+  const b = point(pose, POSE.shoulder + 1, 2)
+  const [left, right] = a[0] < b[0] ? [a, b] : [b, a]
+  const mid = middle(left, right)
+  const scale = dist(left, right) / 2 / TORSO_HALF_WIDTH
+  const head = middle(point(face, HEAD.top, 2), point(face, HEAD.chin, 2))
 
+  ctx.strokeStyle = theme.skinShade
+  ctx.lineCap = 'round'
+  ctx.lineWidth = 0.5
+  ctx.beginPath()
+  ctx.moveTo(...head)
+  ctx.lineTo(mid[0], mid[1] - 0.05)
+  ctx.stroke()
+
+  ctx.save()
+  ctx.translate(...mid)
+  ctx.rotate(Math.atan2(right[1] - left[1], right[0] - left[0]))
+  ctx.scale(scale, scale)
   // La camisa se funde con el papel: es un busto, no un recorte.
-  const shirt = ctx.createLinearGradient(0, 3, 0, 3.95)
+  const shirt = ctx.createLinearGradient(0, (3 - mid[1]) / scale, 0, (3.95 - mid[1]) / scale)
   shirt.addColorStop(0, theme.shirt)
   shirt.addColorStop(1, theme.bg)
   ctx.fillStyle = shirt
   ctx.beginPath()
-  ctx.moveTo(-0.32, 0.86)
-  ctx.bezierCurveTo(-0.72, 0.9, -1.2, 0.92, -1.36, 1.32)
-  ctx.lineTo(-1.2, 4.2)
-  ctx.lineTo(1.2, 4.2)
-  ctx.lineTo(1.36, 1.32)
-  ctx.bezierCurveTo(1.2, 0.92, 0.72, 0.9, 0.32, 0.86)
-  ctx.quadraticCurveTo(0, 1.22, -0.32, 0.86)
+  ctx.moveTo(-0.32, -0.24)
+  ctx.bezierCurveTo(-0.72, -0.2, -1.2, -0.18, -1.36, 0.22)
+  ctx.lineTo(-1.2, 5)
+  ctx.lineTo(1.2, 5)
+  ctx.lineTo(1.36, 0.22)
+  ctx.bezierCurveTo(1.2, -0.18, 0.72, -0.2, 0.32, -0.24)
+  ctx.quadraticCurveTo(0, 0.12, -0.32, -0.24)
   ctx.closePath()
   ctx.fill()
+  ctx.restore()
 }
 
 function drawHair(ctx, theme) {
@@ -166,6 +214,23 @@ function drawHair(ctx, theme) {
   ctx.bezierCurveTo(-0.44, -0.28, -0.52, -0.12, -0.55, 0.04)
   ctx.closePath()
   ctx.fill()
+}
+
+function drawBrow(ctx, face, eye, brow, rest, x, y, theme) {
+  const clamp = (value, limit) => Math.max(-limit, Math.min(limit, value))
+  const now = browPose(face, eye, brow)
+  // Se exagera a propósito: el gesto real es sutil y el personaje tiene otra escala.
+  const lift = clamp((now.lift - rest.lift) * BROW.liftGain, BROW.maxLift)
+  const tilt = clamp((now.tilt - rest.tilt) * BROW.tiltGain, BROW.maxTilt)
+  const side = Math.sign(point(face, eye.outer, 2)[0] - point(face, eye.inner, 2)[0])
+  const base = y - BROW.gap - lift
+
+  ctx.strokeStyle = theme.hair
+  ctx.lineWidth = 0.036
+  ctx.beginPath()
+  ctx.moveTo(x + side * BROW.reach, base - tilt / 2)
+  ctx.quadraticCurveTo(x, base - 0.035, x - side * BROW.reach, base + tilt / 2)
+  ctx.stroke()
 }
 
 function drawEye(ctx, face, eye, theme) {
@@ -186,14 +251,6 @@ function drawEye(ctx, face, eye, theme) {
     ctx.arc(x + 0.018, y - height * 0.38, 0.018, 0, Math.PI * 2)
     ctx.fill()
   }
-
-  // shortcut: cejas fijas, los clips no traen sus puntos; moverlas al reextraer (fase 3).
-  ctx.strokeStyle = theme.hair
-  ctx.lineWidth = 0.034
-  ctx.beginPath()
-  ctx.moveTo(x - 0.075, y - 0.135)
-  ctx.quadraticCurveTo(x, y - 0.17, x + 0.075, y - 0.135)
-  ctx.stroke()
 
   ctx.fillStyle = theme.blush
   ctx.globalAlpha = 0.22
@@ -234,7 +291,7 @@ function drawMouth(ctx, face, theme) {
   ctx.restore()
 }
 
-function drawHead(ctx, face, theme) {
+function drawHead(ctx, face, brows, theme) {
   const top = point(face, HEAD.top, 2)
   const chin = point(face, HEAD.chin, 2)
   const center = middle(top, chin)
@@ -261,7 +318,11 @@ function drawHead(ctx, face, theme) {
 
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  for (const eye of EYES) drawEye(ctx, face, eye, theme)
+  EYES.forEach((eye, i) => {
+    drawEye(ctx, face, eye, theme)
+    const [x, y] = middle(point(face, eye.outer, 2), point(face, eye.inner, 2))
+    drawBrow(ctx, face, eye, BROWS[i], brows[i], x, y, theme)
+  })
 
   const nose = point(face, NOSE_TIP, 2)
   ctx.strokeStyle = theme.skinShade
@@ -279,20 +340,10 @@ function drawHead(ctx, face, theme) {
   ctx.restore()
 }
 
-// El codo cuelga bajo el hombro de su lado. Sin profundidad, una cinemática inversa
-// en 2D lo mete hacia el pecho y los brazos se cruzan cuando las manos suben.
-function elbow(shoulder, wrist) {
-  const outward = Math.sign(shoulder[0])
-  const mid = middle(shoulder, wrist)
-  return [
-    outward * Math.max(Math.abs(shoulder[0]) + ELBOW.out, outward * mid[0] + ELBOW.out),
-    Math.max(shoulder[1] + ELBOW.drop, mid[1]),
-  ]
-}
-
-function drawArm(ctx, side, wrist, theme) {
-  const shoulder = [SHOULDER.x * side, SHOULDER.y]
-  const joint = elbow(shoulder, wrist)
+function drawArm(ctx, pose, arm, hand, theme) {
+  const shoulder = point(pose, POSE.shoulder + arm, 2)
+  const joint = point(pose, POSE.elbow + arm, 2)
+  const wrist = hand ? point(hand, 0) : point(pose, POSE.wrist + arm, 2)
   // Control de la curva para que pase justo por el codo, no a medio camino.
   const control = [2 * joint[0] - (shoulder[0] + wrist[0]) / 2, 2 * joint[1] - (shoulder[1] + wrist[1]) / 2]
   ctx.lineCap = 'round'
@@ -305,6 +356,16 @@ function drawArm(ctx, side, wrist, theme) {
     ctx.moveTo(...shoulder)
     ctx.quadraticCurveTo(...control, ...wrist)
     ctx.stroke()
+  }
+}
+
+// Mientras el detector no ve una mano (suele ser en reposo) queda un puño: si no, desaparece.
+function drawFist(ctx, center, color, theme) {
+  for (const [fill, grow] of [[theme.bg, 0.04], [color, 0]]) {
+    ctx.fillStyle = fill
+    ctx.beginPath()
+    ctx.arc(...center, FIST_RADIUS + grow, 0, Math.PI * 2)
+    ctx.fill()
   }
 }
 
@@ -380,17 +441,13 @@ export function drawFrame(ctx, clip, t, { width, height, mirror, theme, compact 
   ctx.scale(mirror ? -cam.scale : cam.scale, cam.scale)
 
   const face = clip.f ? sample(clip.f, t) : null
-  if (face) {
-    drawTorso(ctx, theme)
-    drawHead(ctx, face, theme)
-  }
+  const pose = clip.p ? sample(clip.p, t) : null
+  if (face && pose) drawTorso(ctx, face, pose, theme)
+  if (face) drawHead(ctx, face, clip.brows, theme)
 
-  const hands = [
-    { hand: sample(clip.l, t), color: theme.left, side: clip.sides.l, size: clip.sizes.l },
-    { hand: sample(clip.r, t), color: theme.right, side: clip.sides.r, size: clip.sizes.r },
-  ].filter((h) => h.hand)
-
-  if (face) for (const { hand, side } of hands) drawArm(ctx, side, point(hand, 0), theme)
+  const colors = { l: theme.left, r: theme.right }
+  const current = { l: sample(clip.l, t), r: sample(clip.r, t) }
+  if (pose) clip.arms.forEach((slot, arm) => drawArm(ctx, pose, arm, current[slot], theme))
 
   if (!compact) {
     drawPath(ctx, clip.paths[0], t, theme.left)
@@ -398,8 +455,16 @@ export function drawFrame(ctx, clip, t, { width, height, mirror, theme, compact 
   }
 
   // La mano que se ve más grande está más cerca de la cámara y va encima.
-  hands.sort((a, b) => dist(point(a.hand, 0), point(a.hand, 9)) - dist(point(b.hand, 0), point(b.hand, 9)))
-  for (const { hand, color, size } of hands) drawHand(ctx, hand, color, size, theme)
+  const hands = ['l', 'r'].filter((slot) => current[slot])
+  const shown = (slot) => dist(point(current[slot], 0), point(current[slot], 9))
+  hands.sort((a, b) => shown(a) - shown(b))
+  for (const slot of hands) drawHand(ctx, current[slot], colors[slot], clip.sizes[slot], theme)
+
+  if (pose) {
+    clip.arms.forEach((slot, arm) => {
+      if (!current[slot]) drawFist(ctx, point(pose, POSE.wrist + arm, 2), colors[slot], theme)
+    })
+  }
 
   ctx.restore()
 }

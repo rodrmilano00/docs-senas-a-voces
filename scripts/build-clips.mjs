@@ -46,6 +46,15 @@ export function fillGaps(series, maxGap) {
   return out
 }
 
+// La cara y el cuerpo siempre están: un cuadro sin detectar se cubre con el más cercano.
+export function holdAll(series) {
+  const filled = fillGaps(series, Infinity)
+  const first = filled.find(Boolean) ?? null
+  const last = filled.findLast(Boolean) ?? null
+  const start = filled.findIndex(Boolean)
+  return filled.map((frame, t) => frame ?? (t < start ? first : last))
+}
+
 // Promedio 1-2-1 entre cuadros vecinos: quita el temblor del detector sin perder el gesto.
 export function smooth(series) {
   return series.map((frame, t) => {
@@ -88,7 +97,8 @@ export function relabelHands(right, left) {
     if (!wrists.length) return -1
     const xs = wrists.map((w) => w[0])
     const ys = wrists.map((w) => w[1])
-    return Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
+    // Pesa cuánto tiempo se ve: unos cuadros sueltos no hacen a una mano la principal.
+    return (wrists.length / series.length) * Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
   }
   return travel(first) >= travel(second) ? [first, second] : [second, first]
 }
@@ -96,10 +106,10 @@ export function relabelHands(right, left) {
 // Pasa de coordenadas de imagen a "cabezas": origen en el centro de la cara y
 // 1 unidad = alto de la cara, así todas las señas comparten encuadre.
 export function normalizeClip({ right, left, face = null, pose = null }, { maxGap = LETTER_GAP, keepEvery = 1 } = {}) {
-  const prepare = (series) => smooth(fillGaps(series, maxGap)).filter((_, t) => t % keepEvery === 0)
-  const [first, second] = relabelHands(right, left).map(prepare)
-  const faces = face ? prepare(face) : null
-  const poses = pose ? prepare(pose) : null
+  const prepare = (series) => smooth(series).filter((_, t) => t % keepEvery === 0)
+  const [first, second] = relabelHands(right, left).map((series) => prepare(fillGaps(series, maxGap)))
+  const faces = face ? prepare(holdAll(face)) : null
+  const poses = pose ? prepare(holdAll(pose)) : null
 
   const seen = faces?.filter(Boolean) ?? []
   let origin, unit
@@ -162,6 +172,7 @@ function checkClip(label, clip) {
   check(clip.l, HAND_POINTS * 3, 12)
   check(clip.f, FACE_POINTS * 2, 12)
   check(clip.p, POSE_POINTS * 2, 12)
+  if (clip.f?.some((frame) => !frame) || clip.p?.some((frame) => !frame)) throw new Error(`${label}: cuadro sin cara o sin cuerpo`)
 }
 
 const titleCase = (label) =>

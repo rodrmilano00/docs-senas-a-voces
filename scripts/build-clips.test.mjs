@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { fillGaps, handsUsed, normalizeClip, relabelHands, smooth } from './build-clips.mjs'
+import { fillGaps, handsUsed, holdAll, normalizeClip, relabelHands, smooth } from './build-clips.mjs'
 
 const hand = (x, y) => Array.from({ length: 21 }, (_, i) => [x + i * 0.01, y + i * 0.01, 0])
 const repeat = (length, make) => Array.from({ length }, (_, t) => make(t))
@@ -11,6 +11,13 @@ test('fillGaps interpola huecos cortos y respeta los largos', () => {
   assert.equal(fillGaps([a, null, null, b], 3)[1][0][0], 1)
   assert.equal(fillGaps([a, null, null, null, null, b], 3)[2], null)
   assert.equal(fillGaps([null, a], 3)[0], null)
+})
+
+test('holdAll no deja cuadros vacíos en ningún extremo', () => {
+  const a = [[1, 1, 0]]
+  const b = [[3, 3, 0]]
+  const out = holdAll([null, a, null, b, null])
+  assert.deepEqual(out.map((frame) => frame[0][0]), [1, 1, 2, 3, 3])
 })
 
 test('smooth suaviza un salto y respeta los cuadros vacíos', () => {

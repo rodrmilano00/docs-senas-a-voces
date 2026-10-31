@@ -18,10 +18,16 @@ npm run dev
 
 ## Datos
 
-`data/signs.json` y `public/clips/` son archivos generados. Para cambiar una palabra, un sinónimo o un tema, edita `data/curacion.json` y regenera. Requiere `ffprobe` y una copia de `SAVb` al lado de este proyecto.
+`data/signs.json` y `public/clips/` son archivos generados. Para cambiar una palabra, un sinónimo o un tema, edita `data/curacion.json` y regenera. Requiere una copia de `SAVb` al lado de este proyecto.
 
 ```bash
 npm run clips
+```
+
+`data/landmarks/` guarda el movimiento extraído de cada video. Solo hay que rehacerlo si cambian los videos. Requiere `pip install mediapipe opencv-python-headless`.
+
+```bash
+python scripts/extract_landmarks.py
 ```
 
 ## Pruebas

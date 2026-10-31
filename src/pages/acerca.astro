@@ -15,7 +15,7 @@ const withVideo = signs.filter((s) => s.video).length
 
       <h2 class="mt-14 text-[clamp(26px,2.4vw,32px)]">De dónde salen las señas</h2>
       <p class="mt-4 text-[17px] leading-[1.65] text-muted">
-        Hoy tenemos {signs.length} señas. {withVideo} parten de videos grabados por Señas a Voces. Con ellos calculamos la posición de las manos y la cara para generar cada animación. El abecedario está incompleto: por ahora va de la A a la K.
+        Hoy tenemos {signs.length} señas. {withVideo} parten de videos grabados por Señas a Voces. De cada video sacamos el movimiento de las manos, los brazos y la cara para animar al personaje. El abecedario está incompleto: por ahora va de la A a la K, sin cuerpo.
       </p>
 
       <h2 class="mt-14 text-[clamp(26px,2.4vw,32px)]">Cómo leer la animación</h2>
@@ -30,7 +30,7 @@ const withVideo = signs.filter((s) => s.video).length
 
       <h2 class="mt-14 text-[clamp(26px,2.4vw,32px)]">Lo que todavía falta</h2>
       <p class="mt-4 text-[17px] leading-[1.65] text-muted">
-        Los ojos, la boca y la posición de la cabeza siguen a quien hace la seña, pero las cejas del personaje todavía no se mueven, y en lengua de señas llevan significado. Los brazos son aproximados. Por eso cada seña dice “En revisión” hasta que la validen personas sordas. Si ves un error, usa “Reportar un error” en la seña.
+        El personaje sigue a quien hace la seña, pero es una versión simplificada: la expresión de la cara es aproximada y los dedos pueden confundirse cuando una mano tapa a la otra. Por eso cada seña dice “En revisión” hasta que la validen personas sordas. Si ves un error, usa “Reportar un error” en la seña.
       </p>
     </div>
   </article>

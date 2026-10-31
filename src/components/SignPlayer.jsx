@@ -248,7 +248,7 @@ export default function SignPlayer({ slug, palabra, video = false }) {
       {!showVideo && clip && (
         <figcaption className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-1 text-[14px] text-muted">
           <span className="inline-flex items-center gap-2"><span aria-hidden="true" className="size-2.5 rounded-full bg-petrol" />Mano principal</span>
-          {clip.l.some(Boolean) && <span className="inline-flex items-center gap-2"><span aria-hidden="true" className="size-2.5 rounded-full bg-cyan" />Otra mano</span>}
+          {(clip.p || clip.l.some(Boolean)) && <span className="inline-flex items-center gap-2"><span aria-hidden="true" className="size-2.5 rounded-full bg-cyan" />Otra mano</span>}
           {clip.paths.some((path) => path.length > 0) && <span className="inline-flex items-center gap-2"><span aria-hidden="true" className="w-5 border-t-2 border-dashed border-muted" />Recorrido</span>}
         </figcaption>
       )}

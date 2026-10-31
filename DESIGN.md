@@ -14,8 +14,8 @@ La marca vive en `windsurf-project/senas-a-voces-landing/DESIGN.md`: tokens, DM 
 Se dibuja en canvas (`src/lib/hands.js`) y sus colores están en `src/styles/global.css` (`--skin`, `--skin-shade`, `--hair`, `--shirt`, `--sleeve`). Esos tokens no se usan en la interfaz.
 
 - **Manos:** petróleo la principal y cian la otra, siempre. Son lo más saturado de la figura y se separan con un borde del color del papel.
-- **Cara:** es un dibujo guiado por datos, no el contorno crudo de los landmarks, que se veía inquietante. Los ojos, la apertura de la boca y la inclinación de la cabeza vienen del clip. Las cejas son fijas hasta reextraer los landmarks.
-- **Cuerpo:** la camisa se funde con el papel para leerse como busto. Hombros y codos son calculados, porque no hay pose.
+- **Cara:** es un dibujo guiado por datos, no el contorno crudo de los landmarks, que se veía inquietante. Los ojos, las cejas, la apertura de la boca y la inclinación de la cabeza vienen del clip. Las cejas se miden contra el reposo de cada clip y se exageran para que el gesto se lea a esta escala.
+- **Cuerpo:** hombros, codos y muñecas vienen de la pose del video. La camisa se funde con el papel para leerse como busto. Si el detector no ve una mano, queda un puño en la muñeca para que no desaparezca.
 - **Recorrido:** línea punteada con la parte recorrida en sólido, el mismo lenguaje de la trayectoria de la landing y el equivalente del orden de trazos en Jisho.
 
 ## Reglas
