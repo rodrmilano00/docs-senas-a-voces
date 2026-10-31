@@ -1,0 +1,37 @@
+---
+import Base from '../layouts/Base.astro'
+import signs from '../../data/signs.json'
+
+const withVideo = signs.filter((s) => s.video).length
+---
+
+<Base title="Acerca del diccionario | Señas a Voces" description="Qué es el diccionario de Señas a Voces, de dónde salen las señas y cómo leer las animaciones.">
+  <article class="container-page pt-8 pb-24">
+    <div class="max-w-[64ch]">
+      <h1 class="text-[clamp(40px,5.6vw,72px)]">Acerca del diccionario</h1>
+      <p class="mt-6 text-[clamp(17px,1.4vw,20px)] leading-[1.65] text-muted">
+        Queremos reunir la Lengua de Señas Mexicana en un solo lugar, para que cualquier persona pueda buscar una palabra y ver su seña. Es un proyecto de Señas a Voces, hecho en Hermosillo, Sonora.
+      </p>
+
+      <h2 class="mt-14 text-[clamp(26px,2.4vw,32px)]">De dónde salen las señas</h2>
+      <p class="mt-4 text-[17px] leading-[1.65] text-muted">
+        Hoy tenemos {signs.length} señas. {withVideo} parten de videos grabados por Señas a Voces. Con ellos calculamos la posición de las manos y la cara para generar cada animación. El abecedario está incompleto: por ahora va de la A a la K.
+      </p>
+
+      <h2 class="mt-14 text-[clamp(26px,2.4vw,32px)]">Cómo leer la animación</h2>
+      <ul class="mt-4 grid gap-3 text-[17px] leading-[1.65] text-muted">
+        <li class="flex items-baseline gap-3"><span aria-hidden="true" class="size-3 shrink-0 rounded-full bg-petrol"></span>La mano azul oscuro es la que hace casi todo el movimiento.</li>
+        <li class="flex items-baseline gap-3"><span aria-hidden="true" class="size-3 shrink-0 rounded-full bg-cyan"></span>La mano azul claro es la otra mano.</li>
+        <li class="flex items-baseline gap-3"><span aria-hidden="true" class="size-3 shrink-0 rounded-full border-2 border-dashed border-petrol"></span>La línea punteada marca el recorrido completo de la mano.</li>
+      </ul>
+      <p class="mt-4 text-[17px] leading-[1.65] text-muted">
+        Con el modo espejo ves la seña como si estuvieras frente a un espejo. Si quieres ver a una persona real, cambia a Video.
+      </p>
+
+      <h2 class="mt-14 text-[clamp(26px,2.4vw,32px)]">Lo que todavía falta</h2>
+      <p class="mt-4 text-[17px] leading-[1.65] text-muted">
+        Los ojos, la boca y la posición de la cabeza siguen a quien hace la seña, pero las cejas del personaje todavía no se mueven, y en lengua de señas llevan significado. Los brazos son aproximados. Por eso cada seña dice “En revisión” hasta que la validen personas sordas. Si ves un error, usa “Reportar un error” en la seña.
+      </p>
+    </div>
+  </article>
+</Base>

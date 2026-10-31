@@ -1,0 +1,8 @@
+---
+import Base from '../layouts/Base.astro'
+import Results from '../components/Results.jsx'
+---
+
+<Base title="Buscar señas | Diccionario de LSM" description="Busca y explora señas de la Lengua de Señas Mexicana por palabra, tema, letra o número de manos.">
+  <Results client:only="react" />
+</Base>

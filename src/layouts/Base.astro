@@ -1,0 +1,53 @@
+---
+import '../styles/global.css'
+import SearchBox from '../components/SearchBox.jsx'
+
+const { title, description, noindex = false, search = true } = Astro.props
+const canonical = new URL(Astro.url.pathname, Astro.site)
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="theme-color" content="#044c62" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..700&display=swap" rel="stylesheet" />
+  </head>
+  <body class="flex min-h-svh flex-col">
+    <a href="#contenido" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-amber focus:px-5 focus:py-2.5 focus:font-bold focus:text-amber-ink">Saltar al contenido</a>
+    <header class="z-30 bg-bg/90 backdrop-blur-md sm:sticky sm:top-0">
+      <div class="container-page flex h-[72px] items-center gap-4 sm:gap-8">
+        <a href="/" aria-label="Diccionario de Señas a Voces, ir al inicio" class="shrink-0">
+          <img src="/logo-horizontal.webp" alt="Señas a Voces" width="1100" height="436" class="h-10 w-auto sm:h-11" />
+        </a>
+        {search ? <div class="hidden min-w-0 flex-1 sm:block"><SearchBox client:idle size="compact" /></div> : <div class="flex-1" />}
+        <nav aria-label="Principal" class="ml-auto flex shrink-0 items-center gap-5 text-[15px] font-bold">
+          <a href="/buscar" class="hover:text-petrol">Explorar</a>
+          <a href="/acerca" class="hover:text-petrol">Acerca</a>
+        </nav>
+      </div>
+      {search && <div class="container-page pb-3 sm:hidden"><SearchBox client:idle size="compact" /></div>}
+    </header>
+    <main id="contenido" class="flex-1">
+      <slot />
+    </main>
+    <footer class="bg-band text-band-muted">
+      <div class="container-page flex flex-col gap-2 py-8 text-[15px] sm:flex-row sm:items-center sm:justify-between">
+        <p>Señas a Voces, Hermosillo, Sonora.</p>
+        <a href="https://senasavocesac.com" class="font-semibold text-band-fg/80 hover:text-band-fg">senasavocesac.com</a>
+      </div>
+    </footer>
+  </body>
+</html>

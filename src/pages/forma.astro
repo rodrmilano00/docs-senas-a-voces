@@ -1,0 +1,36 @@
+---
+import Base from '../layouts/Base.astro'
+import { SignPoster } from '../components/SignPlayer.jsx'
+import signs from '../../data/signs.json'
+
+const shapes = signs.filter((s) => s.categoria === 'abecedario')
+---
+
+<Base title="Buscar por forma de mano | Diccionario de LSM" description="Encuentra una seña por la forma de la mano." noindex>
+  <section class="container-page pt-8 pb-24">
+    <h1 class="text-[clamp(40px,5.6vw,72px)]">Busca por forma de mano</h1>
+    <p class="mt-6 max-w-[56ch] text-[clamp(17px,1.4vw,20px)] leading-[1.65] text-muted">
+      Viste una seña y no sabes qué significa. Elige la forma de la mano y te mostramos las señas que la usan.
+    </p>
+    <p class="mt-6 flex items-baseline gap-2.5 text-[15px] font-bold text-amber-ink">
+      <span aria-hidden="true" class="size-2 shrink-0 translate-y-[-1px] rounded-full bg-amber"></span>
+      Estamos anotando las señas. Por ahora solo funciona el filtro de manos.
+    </p>
+
+    <h2 class="mt-14 text-[clamp(26px,2.4vw,32px)]">¿Cuántas manos usa?</h2>
+    <div class="mt-5 flex flex-wrap gap-3">
+      <a href="/buscar?manos=1" class="inline-flex min-h-12 items-center rounded-full px-6 text-[15px] font-bold ring-1 ring-inset ring-line transition-colors duration-200 hover:bg-fg/[0.04] hover:ring-fg/30">Una mano</a>
+      <a href="/buscar?manos=2" class="inline-flex min-h-12 items-center rounded-full px-6 text-[15px] font-bold ring-1 ring-inset ring-line transition-colors duration-200 hover:bg-fg/[0.04] hover:ring-fg/30">Dos manos</a>
+    </div>
+
+    <h2 class="mt-14 text-[clamp(26px,2.4vw,32px)]">¿Qué forma tiene la mano?</h2>
+    <ul class="mt-6 grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-6">
+      {shapes.map((shape) => (
+        <li>
+          <div class="aspect-square w-full opacity-60"><SignPoster client:visible slug={shape.slug} palabra={shape.palabra} /></div>
+          <p class="mt-1 text-center text-[14px] text-muted">Como la {shape.palabra}</p>
+        </li>
+      ))}
+    </ul>
+  </section>
+</Base>

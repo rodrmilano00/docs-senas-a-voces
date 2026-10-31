@@ -1,0 +1,70 @@
+---
+import Base from '../layouts/Base.astro'
+import SearchBox from '../components/SearchBox.jsx'
+import SignOfDay from '../components/SignOfDay.jsx'
+import WaveLines from '../components/WaveLines.astro'
+import signs from '../../data/signs.json'
+import { categoryCounts } from '../lib/categorias'
+import { normalize } from '../lib/search'
+
+const FEATURED = ['casa', 'buenos-dias', 'amigo', 'familia', 'perro', 'comer', 'feliz', 'agua', 'ayudar', 'mama', '5']
+const featured = FEATURED.flatMap((slug) => signs.filter((s) => s.slug === slug)).map(({ slug, palabra }) => ({ slug, palabra }))
+const examples = ['Agua', 'Buenos días', 'Familia', 'Mañana']
+const categories = categoryCounts(signs).filter((c) => c.count)
+const letters = [...new Set(signs.map((s) => normalize(s.palabra)[0]).filter((c) => /[a-z]/.test(c)))].sort()
+---
+
+<Base
+  title="Diccionario de Lengua de Señas Mexicana | Señas a Voces"
+  description="Busca una palabra en español y mira la seña en Lengua de Señas Mexicana, animada y a tu ritmo."
+  search={false}
+>
+  <section class="relative">
+    <WaveLines class="absolute -top-[72px] right-0 hidden w-[min(52vw,620px)] text-cyan opacity-45 lg:block" />
+    <div class="container-page relative grid items-center gap-10 pt-8 pb-16 lg:min-h-[calc(100svh-72px)] lg:grid-cols-[1.2fr_0.8fr] lg:gap-16 lg:py-10">
+      <div>
+        <h1 class="max-w-[14ch] text-[clamp(44px,6vw,84px)]">Diccionario de Lengua de Señas Mexicana</h1>
+        <p class="mt-6 max-w-[46ch] text-[clamp(17px,1.4vw,20px)] leading-[1.65] text-muted">
+          Escribe una palabra en español y mira la seña, animada y a tu ritmo.
+        </p>
+        <div class="mt-8 max-w-[620px]">
+          <SearchBox client:load size="hero" autoFocus />
+        </div>
+        <p class="mt-4 text-[15px] text-muted">
+          Prueba con{' '}
+          {examples.map((word, i) => (
+            <>
+              {i > 0 && ', '}
+              <a class="font-bold text-fg underline decoration-line decoration-2 underline-offset-4 hover:decoration-amber" href={`/buscar?q=${encodeURIComponent(word)}`}>{word}</a>
+            </>
+          ))}
+        </p>
+      </div>
+      <SignOfDay client:load featured={featured} />
+    </div>
+  </section>
+
+  <section class="container-page pb-24" aria-labelledby="explora">
+    <h2 id="explora" class="text-[clamp(32px,3.6vw,52px)]">Explora por tema</h2>
+    <ul class="mt-8 columns-2 gap-x-10 text-[20px] leading-[1.9] md:columns-3 lg:columns-4">
+      {categories.map(({ id, label, count }) => (
+        <li class="break-inside-avoid">
+          <a class="hover:text-petrol hover:underline hover:decoration-amber hover:decoration-2 hover:underline-offset-[6px]" href={`/buscar?categoria=${id}`}>
+            {label} <span class="tabular text-[15px] text-muted">{count}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <h2 class="mt-20 text-[clamp(26px,2.4vw,32px)]">Por letra</h2>
+    <ul class="mt-4 flex flex-wrap gap-1 text-[20px] font-semibold">
+      {letters.map((letter) => (
+        <li>
+          <a class="inline-flex size-11 items-center justify-center rounded-full text-petrol transition-colors duration-200 hover:bg-fg/[0.06]" href={`/buscar?letra=${letter}`} aria-label={`Señas con ${letter.toUpperCase()}`}>
+            {letter.toUpperCase()}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+</Base>
